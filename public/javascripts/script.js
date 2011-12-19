@@ -1,4 +1,4 @@
-var socket = io.connect('http://localhost:1337/');
+var socket = io.connect(window.location.origin);
 
 var Canvas = new Class({
 	Implements: [Options, Events],
@@ -14,7 +14,7 @@ var Canvas = new Class({
 		this.ctx.canvas.width = this.canvasEl.getWidth();
 		this.ctx.canvas.height = this.canvasEl.getHeight();
 		
-		this.setColor('#ffffff');
+		this.setColor('#000000');
 		
 	},
 	getPosition: function(e){
@@ -38,25 +38,29 @@ var Canvas = new Class({
 		var y1 = position.y - (Math.ceil(this.options.brushWidth / 2));
 		
 		this.ctx.fillRect(x1, y1, this.options.brushWidth, this.options.brushWidth);
-		
-		this.ctx.lineWidth = this.options.brushWidth; 
-		this.ctx.beginPath();  
-		this.ctx.moveTo(position.x,position.y);
-		
+		this.oldDrawPosition = position;
 		this.boundDrag = this.freeDrawDrag.bind(this);
 		this.canvasEl.addEvent('mousemove', this.boundDrag);
 	},
 	freeDrawDrag: function(e){
-		var position = this.getPosition(e);
-		this.freeDrawDragDraw(position);
-		socket.emit('drawn', { method: 'freeDrawDragDraw', arguments: [position], color: this.color });
+		var to = this.getPosition(e);
+		var from = this.oldDrawPosition;
+		this.freeDrawDragDraw(from,to);
+		socket.emit('drawn', { method: 'freeDrawDragDraw', arguments: [from,to], color: this.color });
+		
+		this.oldDrawPosition = to;
 	},
-	freeDrawDragDraw: function(position){
-		this.ctx.lineTo(position.x,position.y); 
+	freeDrawDragDraw: function(from,to){
+		this.ctx.lineWidth = this.options.brushWidth; 
+		this.ctx.beginPath();  
+		this.ctx.moveTo(from.x,from.y);
+		
+		this.ctx.lineTo(to.x,to.y);
 		this.ctx.stroke();
+		
+		this.ctx.closePath();
 	},
 	closeFreeDraw: function(){
-		this.ctx.closePath();
 		this.canvasEl.removeEvent('mousemove', this.boundDrag);		
 	}
 });
