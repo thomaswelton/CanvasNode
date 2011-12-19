@@ -7,6 +7,8 @@ var express = require('express')
 
 var app = module.exports = express.createServer(),
 	io = require('socket.io').listen(app)
+	
+io.set('log level', 1);
 
 // Configuration
 
@@ -24,7 +26,8 @@ app.configure('development', function(){
 });
 
 app.configure('production', function(){
-  app.use(express.errorHandler()); 
+	io.set('log level', 1);
+  	app.use(express.errorHandler()); 
 });
 
 // Routes
