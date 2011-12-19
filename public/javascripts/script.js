@@ -38,6 +38,9 @@ var Canvas = new Class({
 		var y1 = position.y - (Math.ceil(this.options.brushWidth / 2));
 		
 		this.ctx.fillRect(x1, y1, this.options.brushWidth, this.options.brushWidth);
+		
+		//console.log('pointDrawn');
+		//socket.emit('drawn', { method: 'freeDraw', arguments: [position], color: this.color });
 	},
 	drawStart: function(position){
 		//Once called add event lister for drawMoved and closeFreeDraw
@@ -49,18 +52,28 @@ var Canvas = new Class({
 		this.canvasEl.addEvent('mouseup', this.bound.closeFreeDraw);
 		this.canvasEl.addEvent('mouseout', this.bound.closeFreeDraw);
 		
+		//console.log('path opened');
+		this.drawStatPosition = position;
+		
 		this.ctx.lineWidth = this.options.brushWidth; 
 		this.ctx.beginPath();  
 		this.ctx.moveTo(position.x,position.y);
 	},
 	drawMoved: function(e){
+		var event = new Event(e);
 		var to = this.getPosition(e);
+		
+		if(event.type == 'mouseup' && Math.abs(to.x - this.drawStatPosition.x) < Math.ceil(this.options.brushWidth / 2) && Math.abs(to.y - this.drawStatPosition.y) < Math.ceil(this.options.brushWidth / 2)  ){
+			this.drawPoint(to);
+		}
+	
 		this.ctx.lineTo(to.x,to.y);
 		this.ctx.stroke();
 		
 		//socket.emit('drawn', { method: 'freeDrawDragDraw', arguments: [to], color: this.color });
 	},
 	closeFreeDraw: function(e){
+		//console.log('path closed');
 		this.drawMoved(e);
 		this.ctx.closePath();
 		this.canvasEl.removeEvent('mousemove', this.bound.drawMoved);
@@ -70,30 +83,20 @@ var Canvas = new Class({
 });
 
 
-var canvas;
 window.addEvent('domready',function(){
 	canvas = new Canvas($('canvas'),{'drawTool':'pencil'});
-	
-	canvas.canvasEl.addEvent('click',function(e){
-		var position = canvas.getPosition(e);
-		canvas.drawPoint(position);
-	});
 	
 	//We only add the mousedown event to start draeing, the class will add the neccacary events to stop drawing
 	canvas.canvasEl.addEvent('mousedown',function(e){
 		var position = canvas.getPosition(e);
 		canvas.drawStart(position);
-		
-		socket.emit('drawn', { method: 'freeDraw', arguments: [position], color: this.color });
 	});
 	
 	//Setup color pickers
 	$$('.canvas-color-picker').each(function(el){
 		el.addEvent('click',function(e){
 			new Event(e).stop();
-			canvas.setColor(el.getStyle('background-color'));	
-			
-			socket.emit('drawn', { method: 'setColor', arguments: [canvas.color] });
+			canvas.setColor(el.getStyle('background-color'));
 		});
 	});
 	
@@ -105,8 +108,6 @@ window.addEvent('domready',function(){
 	$('clearCanvas').addEvent('click',function(){
 		canvas.clear();	
 	});
-	
-	
 	
 	//Socket goodness
 	socket.on('draw', function (data) {
