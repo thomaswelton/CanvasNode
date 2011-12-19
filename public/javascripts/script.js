@@ -31,6 +31,12 @@ var Canvas = new Class({
 	clear: function(){
 		this.ctx.clearRect(0,0,this.ctx.canvas.width,this.ctx.canvas.height);
 	},
+	mergeCanvas: function(){
+		window.canvas.ctx.drawImage(this.canvasEl,0,0);
+		console.log('merge and destory');
+		console.log(this.canvasEl);
+		$(this.canvasEl).dispose();
+	},
 	emitEvent: function(data){
 		if(!this.isMirror){
 			//If this class instance is a mirror of another user then we do not want to draw events
@@ -83,6 +89,7 @@ var Canvas = new Class({
 		if(event.type == 'mouseup' && Math.abs(position.x - this.drawStatPosition.x) < Math.ceil(this.options.brushWidth / 2) && Math.abs(position.y - this.drawStatPosition.y) < Math.ceil(this.options.brushWidth / 2)  ){
 			this.drawPoint(position);
 			this.emitEvent({ method: 'drawPoint', arguments: [position]});
+			
 		}else{
 			this.drawMouseMove(position);
 			this.emitEvent({ method: 'drawMouseMove', arguments: [position]});
@@ -93,6 +100,7 @@ var Canvas = new Class({
 		this.mouseMoved(e);
 		this.drawEnd();
 		this.emitEvent({ method: 'drawEnd', arguments: [null]});
+		this.emitEvent({ method: 'mergeCanvas', arguments: [null]});
 		
 		if(!this.isMirror){
 			this.canvasEl.removeEvent('mousemove', this.bound.mouseMoved);
@@ -104,7 +112,7 @@ var Canvas = new Class({
 
 
 window.addEvent('domready',function(){
-	canvas = new Canvas($('canvas'),{'isMirror':false});
+	window.canvas = new Canvas($('canvas'),{'isMirror':false});
 	
 	//We only add the mousedown event to start draeing, the class will add the neccacary events to stop drawing
 	canvas.canvasEl.addEvent('mousedown',function(e){
@@ -134,7 +142,9 @@ window.addEvent('domready',function(){
 	
 	//Socket goodness
 	socket.on('draw', function (data) {
+		//console.log(data);
 		if($('canvas-'+data.id) == null){
+			//console.log('create new ncavas');
 			var newCanvasEl = new Element('canvas',{id: 'canvas-'+data.id, class:'canvas'});
 			newCanvasEl.injectInside($('canvas-container'));
 			canvi[data.id] = new Canvas($('canvas-'+data.id),{'isMirror' : true});
