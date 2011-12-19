@@ -34,13 +34,23 @@ app.configure('production', function(){
 
 app.get('/', routes.index);
 
+var canvi = [];
+
 io.sockets.on('connection', function (socket) {
 	//Socket connection
-	socket.join('room'); 
+	socket.join('room');
+	
+	socket.emit('startCanvas', { image: canvi['room'] });
+	
 	socket.on('drawn', function (data) {
 		data.id = socket.id;
 		io.sockets.to('room').except(socket.id).emit('draw', data);
 	});
+	
+	socket.on('updateCanvas', function (data) {
+		canvi['room'] = data;
+	});	
+	
 });
 
 app.listen(1337);

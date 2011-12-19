@@ -29,13 +29,14 @@ var Canvas = new Class({
 		this.ctx.strokeStyle	= color;
 	},
 	clear: function(){
-		this.ctx.clearRect(0,0,this.ctx.canvas.width,this.ctx.canvas.height);
+		window.canvas.ctx.clearRect(0,0,this.ctx.canvas.width,this.ctx.canvas.height);
+		socket.emit('updateCanvas', window.canvas.canvasEl.toDataURL('image/png'));
+		this.emitEvent({ method: 'clear', arguments: [null]});
 	},
 	mergeCanvas: function(){
 		window.canvas.ctx.drawImage(this.canvasEl,0,0);
-		console.log('merge and destory');
-		console.log(this.canvasEl);
 		$(this.canvasEl).dispose();
+		socket.emit('updateCanvas', window.canvas.canvasEl.toDataURL('image/png'));
 	},
 	emitEvent: function(data){
 		if(!this.isMirror){
@@ -60,9 +61,9 @@ var Canvas = new Class({
 		this.bound.mouseMoved		= this.mouseMoved.bind(this); 
 		
 		if(!this.isMirror){
-			this.canvasEl.addEvent('mousemove', this.bound.mouseMoved);
-			this.canvasEl.addEvent('mouseup', this.bound.mouseExit);
-			this.canvasEl.addEvent('mouseout', this.bound.mouseExit);
+			$('canvas-container').addEvent('mousemove', this.bound.mouseMoved);
+			$('canvas-container').addEvent('mouseup', this.bound.mouseExit);
+			$('canvas-container').addEvent('mouseout', this.bound.mouseExit);
 		}
 		
 		//console.log('path opened');
@@ -103,9 +104,9 @@ var Canvas = new Class({
 		this.emitEvent({ method: 'mergeCanvas', arguments: [null]});
 		
 		if(!this.isMirror){
-			this.canvasEl.removeEvent('mousemove', this.bound.mouseMoved);
-			this.canvasEl.removeEvent('mouseup', this.bound.mouseExit);
-			this.canvasEl.removeEvent('mouseout', this.bound.mouseExit);
+			$('canvas-container').removeEvent('mousemove', this.bound.mouseMoved);
+			$('canvas-container').removeEvent('mouseup', this.bound.mouseExit);
+			$('canvas-container').removeEvent('mouseout', this.bound.mouseExit);
 		}
 	}
 });
@@ -115,7 +116,7 @@ window.addEvent('domready',function(){
 	window.canvas = new Canvas($('canvas'),{'isMirror':false});
 	
 	//We only add the mousedown event to start draeing, the class will add the neccacary events to stop drawing
-	canvas.canvasEl.addEvent('mousedown',function(e){
+	$('canvas-container').addEvent('mousedown',function(e){
 		var position = canvas.getPosition(e);
 		canvas.drawStart(position);
 	});
@@ -141,6 +142,16 @@ window.addEvent('domready',function(){
 	canvi = [];
 	
 	//Socket goodness
+	socket.on('startCanvas',function(data){
+		if(typeof(data.image) != 'undefined'){
+			var image = new Image();
+			image.onload = function(){ 
+				window.canvas.ctx.drawImage(image,0,0);
+			}
+			image.src = data.image;
+		}
+	});
+	
 	socket.on('draw', function (data) {
 		//console.log(data);
 		if($('canvas-'+data.id) == null){
@@ -157,6 +168,4 @@ window.addEvent('domready',function(){
 			canvi[data.id][data.method](data.arguments[0]);
 		}
 	});
-	
-	
 });
