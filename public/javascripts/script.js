@@ -33,35 +33,39 @@ var Canvas = new Class({
 	clear: function(){
 		this.ctx.clearRect(0,0,this.ctx.canvas.width,this.ctx.canvas.height);
 	},
-	freeDraw: function(position){	
+	drawPoint: function(position){	
 		var x1 = position.x - (Math.ceil(this.options.brushWidth / 2));
 		var y1 = position.y - (Math.ceil(this.options.brushWidth / 2));
 		
 		this.ctx.fillRect(x1, y1, this.options.brushWidth, this.options.brushWidth);
-		this.oldDrawPosition = position;
-		this.boundDrag = this.freeDrawDrag.bind(this);
-		this.canvasEl.addEvent('mousemove', this.boundDrag);
 	},
-	freeDrawDrag: function(e){
-		var to = this.getPosition(e);
-		var from = this.oldDrawPosition;
-		this.freeDrawDragDraw(from,to);
-		socket.emit('drawn', { method: 'freeDrawDragDraw', arguments: [from,to], color: this.color });
+	drawStart: function(position){
+		//Once called add event lister for drawMoved and closeFreeDraw
+		this.bound = new Object();
+		this.bound.closeFreeDraw = this.closeFreeDraw.bind(this);
+		this.bound.drawMoved		= this.drawMoved.bind(this); 
 		
-		this.oldDrawPosition = to;
-	},
-	freeDrawDragDraw: function(from,to){
+		this.canvasEl.addEvent('mousemove', this.bound.drawMoved);
+		this.canvasEl.addEvent('mouseup', this.bound.closeFreeDraw);
+		this.canvasEl.addEvent('mouseout', this.bound.closeFreeDraw);
+		
 		this.ctx.lineWidth = this.options.brushWidth; 
 		this.ctx.beginPath();  
-		this.ctx.moveTo(from.x,from.y);
-		
+		this.ctx.moveTo(position.x,position.y);
+	},
+	drawMoved: function(e){
+		var to = this.getPosition(e);
 		this.ctx.lineTo(to.x,to.y);
 		this.ctx.stroke();
 		
-		this.ctx.closePath();
+		//socket.emit('drawn', { method: 'freeDrawDragDraw', arguments: [to], color: this.color });
 	},
-	closeFreeDraw: function(){
-		this.canvasEl.removeEvent('mousemove', this.boundDrag);		
+	closeFreeDraw: function(e){
+		this.drawMoved(e);
+		this.ctx.closePath();
+		this.canvasEl.removeEvent('mousemove', this.bound.drawMoved);
+		this.canvasEl.removeEvent('mouseup', this.bound.closeFreeDraw);
+		this.canvasEl.removeEvent('mouseout', this.bound.closeFreeDraw);		
 	}
 });
 
@@ -70,23 +74,17 @@ var canvas;
 window.addEvent('domready',function(){
 	canvas = new Canvas($('canvas'),{'drawTool':'pencil'});
 	
-	canvas.canvasEl.addEvent('mousedown',function(e){
+	canvas.canvasEl.addEvent('click',function(e){
 		var position = canvas.getPosition(e);
-		canvas.freeDraw(position);
-		socket.emit('drawn', { method: 'freeDraw', arguments: [position], color: this.color });
+		canvas.drawPoint(position);
 	});
 	
-	document.body.addEvent('mouseup',function(e){
-		//remove the bound free draw function
-		canvas.closeFreeDraw();
-		canvas.canvasEl.removeEvent('mousemove', canvas.freeDrawDrag);	
+	//We only add the mousedown event to start draeing, the class will add the neccacary events to stop drawing
+	canvas.canvasEl.addEvent('mousedown',function(e){
+		var position = canvas.getPosition(e);
+		canvas.drawStart(position);
 		
-		socket.emit('drawn', { method: 'closeFreeDraw', arguments: [null], color: this.color });
-	});
-	canvas.canvasEl.addEvent('mouseout',function(e){
-		//remove the bound free draw function
-		canvas.closeFreeDraw();
-		socket.emit('drawn', { method: 'closeFreeDraw', arguments: [null], color: this.color });
+		socket.emit('drawn', { method: 'freeDraw', arguments: [position], color: this.color });
 	});
 	
 	//Setup color pickers
