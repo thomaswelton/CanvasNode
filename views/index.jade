@@ -1,0 +1,9 @@
+canvas#canvas
+
+#color-container
+	- each color in colors
+		.canvas-color-picker(style="background-color:"+color+";")
+
+form
+	button(id="clearCanvas", type="button") Start Again
+	button(id="getCanvasImage", type="button") Get canvas as png
