@@ -8,14 +8,12 @@ var Canvas = new Class({
 	initialize: function(el,options){
 		this.options.brushWidth = 6;
 		this.setOptions(options);
-		
+		this.isMirror 	= (this.options.isMirror == true);
 		this.canvasEl 	= el;
 		this.ctx		= this.canvasEl.getContext('2d');
+		this.setColor('#000000');
 		this.ctx.canvas.width = this.canvasEl.getWidth();
 		this.ctx.canvas.height = this.canvasEl.getHeight();
-		
-		this.setColor('#000000');
-		
 	},
 	getPosition: function(e){
 		var canvasPosition = this.canvasEl.getCoordinates();
@@ -33,6 +31,13 @@ var Canvas = new Class({
 	clear: function(){
 		this.ctx.clearRect(0,0,this.ctx.canvas.width,this.ctx.canvas.height);
 	},
+	emitEvent: function(data){
+		if(!this.isMirror){
+			//If this class instance is a mirror of another user then we do not want to draw events
+			data.color = this.color;
+			socket.emit('drawn', data);
+		}
+	},
 	drawPoint: function(position){	
 		var x1 = position.x - (Math.ceil(this.options.brushWidth / 2));
 		var y1 = position.y - (Math.ceil(this.options.brushWidth / 2));
@@ -40,17 +45,19 @@ var Canvas = new Class({
 		this.ctx.fillRect(x1, y1, this.options.brushWidth, this.options.brushWidth);
 		
 		//console.log('pointDrawn');
-		//socket.emit('drawn', { method: 'freeDraw', arguments: [position], color: this.color });
+		this.emitEvent({ method: 'drawPoint', arguments: [position]});
 	},
 	drawStart: function(position){
-		//Once called add event lister for drawMoved and closeFreeDraw
+		//Once called add event lister for mouseMoved and mouseExit
 		this.bound = new Object();
-		this.bound.closeFreeDraw = this.closeFreeDraw.bind(this);
-		this.bound.drawMoved		= this.drawMoved.bind(this); 
+		this.bound.mouseExit = this.mouseExit.bind(this);
+		this.bound.mouseMoved		= this.mouseMoved.bind(this); 
 		
-		this.canvasEl.addEvent('mousemove', this.bound.drawMoved);
-		this.canvasEl.addEvent('mouseup', this.bound.closeFreeDraw);
-		this.canvasEl.addEvent('mouseout', this.bound.closeFreeDraw);
+		if(!this.isMirror){
+			this.canvasEl.addEvent('mousemove', this.bound.mouseMoved);
+			this.canvasEl.addEvent('mouseup', this.bound.mouseExit);
+			this.canvasEl.addEvent('mouseout', this.bound.mouseExit);
+		}
 		
 		//console.log('path opened');
 		this.drawStatPosition = position;
@@ -58,33 +65,46 @@ var Canvas = new Class({
 		this.ctx.lineWidth = this.options.brushWidth; 
 		this.ctx.beginPath();  
 		this.ctx.moveTo(position.x,position.y);
-	},
-	drawMoved: function(e){
-		var event = new Event(e);
-		var to = this.getPosition(e);
 		
-		if(event.type == 'mouseup' && Math.abs(to.x - this.drawStatPosition.x) < Math.ceil(this.options.brushWidth / 2) && Math.abs(to.y - this.drawStatPosition.y) < Math.ceil(this.options.brushWidth / 2)  ){
-			this.drawPoint(to);
-		}
-	
-		this.ctx.lineTo(to.x,to.y);
+		this.emitEvent({ method: 'drawStart', arguments: [position]});
+	},
+	drawMouseMove: function(position){
+		//this.setColor(this.color);
+		this.ctx.lineTo(position.x,position.y);
 		this.ctx.stroke();
-		
-		//socket.emit('drawn', { method: 'freeDrawDragDraw', arguments: [to], color: this.color });
 	},
-	closeFreeDraw: function(e){
-		//console.log('path closed');
-		this.drawMoved(e);
+	drawEnd: function(){
 		this.ctx.closePath();
-		this.canvasEl.removeEvent('mousemove', this.bound.drawMoved);
-		this.canvasEl.removeEvent('mouseup', this.bound.closeFreeDraw);
-		this.canvasEl.removeEvent('mouseout', this.bound.closeFreeDraw);		
+	},
+	mouseMoved: function(e){
+		var event = new Event(e);
+		var position = this.getPosition(e);
+		
+		if(event.type == 'mouseup' && Math.abs(position.x - this.drawStatPosition.x) < Math.ceil(this.options.brushWidth / 2) && Math.abs(position.y - this.drawStatPosition.y) < Math.ceil(this.options.brushWidth / 2)  ){
+			this.drawPoint(position);
+			this.emitEvent({ method: 'drawPoint', arguments: [position]});
+		}else{
+			this.drawMouseMove(position);
+			this.emitEvent({ method: 'drawMouseMove', arguments: [position]});
+		}
+	},
+	mouseExit: function(e){
+		//console.log('path closed');
+		this.mouseMoved(e);
+		this.drawEnd();
+		this.emitEvent({ method: 'drawEnd', arguments: [null]});
+		
+		if(!this.isMirror){
+			this.canvasEl.removeEvent('mousemove', this.bound.mouseMoved);
+			this.canvasEl.removeEvent('mouseup', this.bound.mouseExit);
+			this.canvasEl.removeEvent('mouseout', this.bound.mouseExit);
+		}
 	}
 });
 
 
 window.addEvent('domready',function(){
-	canvas = new Canvas($('canvas'),{'drawTool':'pencil'});
+	canvas = new Canvas($('canvas'),{'isMirror':false});
 	
 	//We only add the mousedown event to start draeing, the class will add the neccacary events to stop drawing
 	canvas.canvasEl.addEvent('mousedown',function(e){
@@ -109,13 +129,22 @@ window.addEvent('domready',function(){
 		canvas.clear();	
 	});
 	
+	//Much like the pulral of luxus is lexi I have decided the plural on canvas is canvi. 
+	canvi = [];
+	
 	//Socket goodness
 	socket.on('draw', function (data) {
-		if(typeof(canvas[data.method]) == 'function'){
+		if($('canvas-'+data.id) == null){
+			var newCanvasEl = new Element('canvas',{id: 'canvas-'+data.id, class:'canvas'});
+			newCanvasEl.injectInside($('canvas-container'));
+			canvi[data.id] = new Canvas($('canvas-'+data.id),{'isMirror' : true});
+		}
+		
+		if(typeof(canvi[data.id][data.method]) == 'function'){
 			if(typeof(data.color) != 'undefined'){
-				canvas.setColor(data.color);
+				canvi[data.id].setColor(data.color);
 			}
-			canvas[data.method](data.arguments[0]);
+			canvi[data.id][data.method](data.arguments[0]);
 		}
 	});
 	

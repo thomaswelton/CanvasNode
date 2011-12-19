@@ -7,10 +7,26 @@ a {
   color: #00B7FF;
 }
 
-#canvas{
-	border:1px solid grey;
+#canvas-container{
+	float:left;
+	position:relative;
 	width:700px;
-	height:600px;	
+	height:600px;
+}
+
+.canvas{
+	border:1px solid grey;
+	width:100%;
+	height:100%;
+	
+	position:absolute;
+	top:0;
+	left:0;
+	z-index:0;
+}
+
+.canvas.main{
+	z-index:10;
 }
 
 .canvas-color-picker{

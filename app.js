@@ -38,7 +38,7 @@ io.sockets.on('connection', function (socket) {
 	//Socket connection
 	socket.join('room'); 
 	socket.on('drawn', function (data) {
-		console.log('emit this');
+		data.id = socket.id;
 		io.sockets.to('room').except(socket.id).emit('draw', data);
 	});
 });
