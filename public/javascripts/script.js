@@ -16,8 +16,21 @@ var Canvas = new Class({
 		this.ctx.canvas.height = this.canvasEl.getHeight();
 	},
 	getPosition: function(e){
+		var event = new Event(e);
 		var canvasPosition = this.canvasEl.getCoordinates();
-		return ({ x : e.page.x - canvasPosition.left, y: e.page.y - canvasPosition.top });	
+		var eventPosition = {};
+		
+		if(typeof(event.targetTouches) != 'undefined'){
+			eventPosition.x = event.targetTouches[0].pageX;
+			eventPosition.y = event.targetTouches[0].pageY;
+			
+			console.log('x:'+eventPosition.x+' y:'+eventPosition.y);
+		}else{
+			eventPosition.x = event.page.x;
+			eventPosition.y = event.page.y;
+		}
+		
+		return ({ x : eventPosition.x - canvasPosition.left, y: eventPosition.y - canvasPosition.top });	
 	},
 	getImage: function(){
 		var imageData = this.canvasEl.toDataURL('image/png');
@@ -36,7 +49,7 @@ var Canvas = new Class({
 	mergeCanvas: function(){
 		window.canvas.ctx.drawImage(this.canvasEl,0,0);
 		$(this.canvasEl).dispose();
-		socket.emit('updateCanvas', window.canvas.canvasEl.toDataURL('image/png'));
+		//socket.emit('updateCanvas', window.canvas.canvasEl.toDataURL('image/png'));
 	},
 	emitEvent: function(data){
 		if(!this.isMirror){
@@ -65,9 +78,9 @@ var Canvas = new Class({
 			$('canvas-container').addEvent('mouseup', this.bound.mouseExit);
 			$('canvas-container').addEvent('mouseout', this.bound.mouseExit);
 			
-			$('canvas-container').addEventListener('touchmove', this.bound.mouseMoved);
-			$('canvas-container').addEventListener('touchend', this.bound.mouseExit);
-			$('canvas-container').addEventListener('touchcancel', this.bound.mouseExit);
+			$('canvas-container').addEventListener('touchmove', this.bound.mouseMoved,false);
+			$('canvas-container').addEventListener('touchend', this.bound.mouseExit,false);
+			$('canvas-container').addEventListener('touchcancel', this.bound.mouseExit,false);
 		}
 		
 		//console.log('path opened');
@@ -95,7 +108,6 @@ var Canvas = new Class({
 		if(event.type == 'mouseup' && Math.abs(position.x - this.drawStatPosition.x) < Math.ceil(this.options.brushWidth / 2) && Math.abs(position.y - this.drawStatPosition.y) < Math.ceil(this.options.brushWidth / 2)  ){
 			this.drawPoint(position);
 			this.emitEvent({ method: 'drawPoint', arguments: [position]});
-			
 		}else{
 			this.drawMouseMove(position);
 			this.emitEvent({ method: 'drawMouseMove', arguments: [position]});
@@ -103,7 +115,6 @@ var Canvas = new Class({
 	},
 	mouseExit: function(e){
 		//console.log('path closed');
-		this.mouseMoved(e);
 		this.drawEnd();
 		this.emitEvent({ method: 'drawEnd', arguments: [null]});
 		this.emitEvent({ method: 'mergeCanvas', arguments: [null]});
