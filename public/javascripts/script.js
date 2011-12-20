@@ -178,7 +178,8 @@ window.addEvent('domready',function(){
 		if($('canvas-'+data.id) == null){
 			//console.log('create new ncavas');
 			var newCanvasEl = new Element('canvas',{id: 'canvas-'+data.id, class:'canvas'});
-			newCanvasEl.injectInside($('canvas-container'));
+			newCanvasEl.cloneEvents($('canvas'));
+			newCanvasEl.inject($('canvas-container'),'bottom');
 			canvi[data.id] = new Canvas($('canvas-'+data.id),{'isMirror' : true});
 		}
 		
