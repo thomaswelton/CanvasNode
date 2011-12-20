@@ -9,9 +9,9 @@ a {
 
 #canvas-container{
 	position:relative;
-	margin:auto;
-	width:1000px;
-	height:700px;
+	float:left;
+	width:800px;
+	height:600px;
 	z-index:10;
 }
 
@@ -26,9 +26,23 @@ a {
 	z-index:0;
 }
 
+#color-container{
+	float:left;
+	width:300px;
+	margin-left:10px;
+}
+
 .canvas-color-picker{
 	float:left;
 	width:50px;
 	height:50px;
 	border:1px solid black;
+}
+
+form{
+	float:left;
+}
+button{
+	float:left;
+	clear:both;	
 }
