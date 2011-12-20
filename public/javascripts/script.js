@@ -89,6 +89,7 @@ var Canvas = new Class({
 	},
 	mouseMoved: function(e){
 		var event = new Event(e);
+		event.preventDefault();
 		var position = this.getPosition(e);
 		
 		if(event.type == 'mouseup' && Math.abs(position.x - this.drawStatPosition.x) < Math.ceil(this.options.brushWidth / 2) && Math.abs(position.y - this.drawStatPosition.y) < Math.ceil(this.options.brushWidth / 2)  ){
