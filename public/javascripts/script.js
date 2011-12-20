@@ -12,8 +12,8 @@ var Canvas = new Class({
 		this.canvasEl 	= el;
 		this.ctx		= this.canvasEl.getContext('2d');
 		this.setColor('#000000');
-		this.ctx.canvas.width = this.canvasEl.getWidth();
-		this.ctx.canvas.height = this.canvasEl.getHeight();
+		this.ctx.canvas.width = this.canvasEl.getWidth().toInt();
+		this.ctx.canvas.height = this.canvasEl.getHeight().toInt();
 	},
 	getPosition: function(e){
 		var event = new Event(e);
