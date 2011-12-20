@@ -126,7 +126,6 @@ window.addEvent('domready',function(){
 	});
 	
 	$('canvas-container').addEventListener('touchstart',function(e){
-		alert('touch start');
 		var position = canvas.getPosition(e);
 		canvas.drawStart(position);
 	},false);
