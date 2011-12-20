@@ -64,6 +64,10 @@ var Canvas = new Class({
 			$('canvas-container').addEvent('mousemove', this.bound.mouseMoved);
 			$('canvas-container').addEvent('mouseup', this.bound.mouseExit);
 			$('canvas-container').addEvent('mouseout', this.bound.mouseExit);
+			
+			$('canvas-container').addEventListener('touchmove', this.bound.mouseMoved);
+			$('canvas-container').addEventListener('touchend', this.bound.mouseExit);
+			$('canvas-container').addEventListener('touchcancel', this.bound.mouseExit);
 		}
 		
 		//console.log('path opened');
@@ -121,6 +125,12 @@ window.addEvent('domready',function(){
 		canvas.drawStart(position);
 	});
 	
+	$('canvas-container').addEventListener('touchstart',function(e){
+		alert('touch start');
+		var position = canvas.getPosition(e);
+		canvas.drawStart(position);
+	},false);
+	
 	//Setup color pickers
 	$$('.canvas-color-picker').each(function(el){
 		el.addEvent('click',function(e){
@@ -168,4 +178,8 @@ window.addEvent('domready',function(){
 			canvi[data.id][data.method](data.arguments[0]);
 		}
 	});
+	
+	document.body.addEventListener('touchmove',function(event){
+	  event.preventDefault();
+	},false);
 });
