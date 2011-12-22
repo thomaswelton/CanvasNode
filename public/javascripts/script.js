@@ -11,7 +11,6 @@ var Canvas = new Class({
 		this.isMirror 	= (this.options.isMirror == true);
 		this.canvasEl 	= el;
 		this.ctx		= this.canvasEl.getContext('2d');
-		this.setColor('#000000');
 		this.ctx.canvas.width = this.canvasEl.getWidth().toInt();
 		this.ctx.canvas.height = this.canvasEl.getHeight().toInt();
 		
@@ -60,67 +59,92 @@ var Canvas = new Class({
 			socket.emit('drawn', data);
 		}
 	},
-	fillCanvas: function(position){
-		var colorMatch = this.getPixelColor(position);
+	fillCanvas: function(start){
 		
-		var pixels = this.getMatchingPixels(position,colorMatch);
+		var pixelStack = [[start.x, start.y]];
+		var canvasWidth = this.ctx.canvas.width; 
+		var canvasHeight = this.ctx.canvas.height;
+		var colorLayer = this.ctx.getImageData(0, 0, canvasWidth, canvasHeight);
 		
-		this.setPixelColor(pixels);		
-	},
-	getMatchingPixels: function(start,match){
+		startPos = (start.y*canvasWidth + start.x) * 4;
+		console.log(startPos);
+		console.log(colorLayer.data[startPos]);
 		
-		var pixelStack = [start];
-		var returnStack = [];
+		var matchColor = [colorLayer.data[startPos],colorLayer.data[startPos+1],colorLayer.data[startPos+2]];
+		console.log(matchColor);
+		
+		var matchStartColor = function(pixelPos){
+		  var r = colorLayer.data[pixelPos];	
+		  var g = colorLayer.data[pixelPos+1];	
+		  var b = colorLayer.data[pixelPos+2];
+		
+		  return (r == matchColor[0] && g == matchColor[1] && b == matchColor[2]);
+		};
+		
+		var colorPixel = function(pixelPos){
+		  colorLayer.data[pixelPos] = 127;
+		  colorLayer.data[pixelPos+1] = 127;
+		  colorLayer.data[pixelPos+2] = 127;
+		  colorLayer.data[pixelPos+3] = 255;
+		};
 		
 		while(pixelStack.length){
-			var pixelPos = pixelStack.pop();
-			reachLeft = reachRight = true;
-			//Move up untill boundry or different color
-			while(pixelPos.y > 0 && this.pixelColorMatch(pixelPos,match)){
-			    pixelPos.y--;
-			}
 			
-			//We have now moved up from the start pixel to the first blocking pixel
-			
-			while(pixelPos.y <= this.ctx.canvas.height && this.pixelColorMatch(pixelPos,match)){
-			console.log('add');    
-			returnStack.push(pixelPos);
-/*
-			    if(pixelPos.x > 0){
-			    	
-					if(reachLeft && this.pixelColorMatch({x:pixelPos.x - 1, y:pixelPos.y},match)){
-			        	pixelStack.push({x: pixelPos.x - 1,y: pixelPos.y});
-			          	reachLeft = false;
-			      	}
-			      	else if(reachLeft){
-			        	reachLeft = true;
-			      	}
-			    }
-
-			    if(x < canvasWidth-1)
-			    {
-			      if(matchStartColor(pixelPos + 4))
-			      {
-			        if(!reachRight)
-			        {
-			          pixelStack.push([x + 1, y]);
-			          reachRight = true;
-			        }
-			      }
-			      else if(reachRight)
-			      {
-			        reachRight = false;
-			      }
-			    }
-			
-*/
-
-			    pixelPos.y++;
-			}
-		}
-		console.log(returnStack);
-		return returnStack;
+		  var newPos, x, y, pixelPos, reachLeft, reachRight;
+		  newPos = pixelStack.pop();
+		  x = newPos[0];
+		  y = newPos[1];
+		  
+		  pixelPos = (y*canvasWidth + x) * 4;
+		  while(y-- >= 0 && matchStartColor(pixelPos))
+		  {
+			pixelPos -= canvasWidth * 4;
+		  }
+		  pixelPos += canvasWidth * 4;
+		  ++y;
+		  reachLeft = false;
+		  reachRight = false;
+		  while(y++ < canvasHeight-1 && matchStartColor(pixelPos))
+		  {
+			colorPixel(pixelPos);
 		
+			if(x > 0)
+			{
+			  if(matchStartColor(pixelPos - 4))
+			  {
+				if(!reachLeft){
+				  pixelStack.push([x - 1, y]);
+				  reachLeft = true;
+				}
+			  }
+			  else if(reachLeft)
+			  {
+				reachLeft = false;
+			  }
+			}
+			
+			if(x < canvasWidth-1)
+			{
+			  if(matchStartColor(pixelPos + 4))
+			  {
+				if(!reachRight)
+				{
+				  pixelStack.push([x + 1, y]);
+				  reachRight = true;
+				}
+			  }
+			  else if(reachRight)
+			  {
+				reachRight = false;
+			  }
+			}
+					
+			pixelPos += canvasWidth * 4;
+		  }
+		}
+		this.ctx.putImageData(colorLayer, 0, 0);
+		
+		this.emitEvent({ method: 'fillCanvas', arguments: [start]});
 	},
 	setPixelColor: function(pixels){
 		var width = this.ctx.canvas.width;
@@ -150,7 +174,8 @@ var Canvas = new Class({
 	pixelColorMatch: function(p1,color){
 		p1Color = this.getPixelColor(p1);
 
-		
+		//console.log('color check x'+p1.x+' y'+p1.y);
+		//console.log((p1Color[0] == color[0] && p1Color[1] == color[1] && p1Color[2] == color[2]));
 
 		return (p1Color[0] == color[0] && p1Color[1] == color[1] && p1Color[2] == color[2]);
 		
@@ -286,6 +311,7 @@ window.addEvent('domready',function(){
 			newCanvasEl.cloneEvents($('canvas'));
 			newCanvasEl.inject($('canvas-container'),'bottom');
 			canvi[data.id] = new Canvas($('canvas-'+data.id),{'isMirror' : true});
+			canvi[data.id].ctx.drawImage(window.canvas.canvasEl,0,0);
 		}
 		
 		if(typeof(canvi[data.id][data.method]) == 'function'){
