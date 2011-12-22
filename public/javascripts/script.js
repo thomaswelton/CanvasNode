@@ -14,6 +14,8 @@ var Canvas = new Class({
 		this.setColor('#000000');
 		this.ctx.canvas.width = this.canvasEl.getWidth().toInt();
 		this.ctx.canvas.height = this.canvasEl.getHeight().toInt();
+		
+		this.tool = 'fill';
 	},
 	getPosition: function(e){
 		var event = new Event(e);
@@ -57,6 +59,101 @@ var Canvas = new Class({
 			data.color = this.color;
 			socket.emit('drawn', data);
 		}
+	},
+	fillCanvas: function(position){
+		var colorMatch = this.getPixelColor(position);
+		
+		var pixels = this.getMatchingPixels(position,colorMatch);
+		
+		this.setPixelColor(pixels);		
+	},
+	getMatchingPixels: function(start,match){
+		
+		var pixelStack = [start];
+		var returnStack = [];
+		
+		while(pixelStack.length){
+			var pixelPos = pixelStack.pop();
+			reachLeft = reachRight = true;
+			//Move up untill boundry or different color
+			while(pixelPos.y > 0 && this.pixelColorMatch(pixelPos,match)){
+			    pixelPos.y--;
+			}
+			
+			//We have now moved up from the start pixel to the first blocking pixel
+			
+			while(pixelPos.y <= this.ctx.canvas.height && this.pixelColorMatch(pixelPos,match)){
+			console.log('add');    
+			returnStack.push(pixelPos);
+/*
+			    if(pixelPos.x > 0){
+			    	
+					if(reachLeft && this.pixelColorMatch({x:pixelPos.x - 1, y:pixelPos.y},match)){
+			        	pixelStack.push({x: pixelPos.x - 1,y: pixelPos.y});
+			          	reachLeft = false;
+			      	}
+			      	else if(reachLeft){
+			        	reachLeft = true;
+			      	}
+			    }
+
+			    if(x < canvasWidth-1)
+			    {
+			      if(matchStartColor(pixelPos + 4))
+			      {
+			        if(!reachRight)
+			        {
+			          pixelStack.push([x + 1, y]);
+			          reachRight = true;
+			        }
+			      }
+			      else if(reachRight)
+			      {
+			        reachRight = false;
+			      }
+			    }
+			
+*/
+
+			    pixelPos.y++;
+			}
+		}
+		console.log(returnStack);
+		return returnStack;
+		
+	},
+	setPixelColor: function(pixels){
+		var width = this.ctx.canvas.width;
+		var height = this.ctx.canvas.height;
+		var imgd =this.ctx.getImageData(0, 0, width, height);
+		var pix = imgd.data;
+		
+		// Loop over each pixel.
+		for (var i = 0; i < pixels.length; i++) {
+			var startPoint = pixels[i].x + (pixels[i].y * width);
+			
+			pix[startPoint + ((startPoint - 1) * 3)] = 127; // the red channel
+			pix[startPoint+1 + ((startPoint - 1) * 3)] = 255; // the green channel
+			pix[startPoint+2 + ((startPoint - 1) * 3)] = 255; // the blue channel
+			pix[startPoint+3 + ((startPoint - 1) * 3)] = 255; // the alpha channel
+		}
+		
+		// Draw the ImageData object at the given (x,y) coordinates.
+		this.ctx.putImageData(imgd, 0,0);
+		
+	},
+	getPixelColor: function(position){
+		var pixelData = this.ctx.getImageData(position.x,position.y,1,1);
+		return pixelData.data;
+		
+	},
+	pixelColorMatch: function(p1,color){
+		p1Color = this.getPixelColor(p1);
+
+		
+
+		return (p1Color[0] == color[0] && p1Color[1] == color[1] && p1Color[2] == color[2]);
+		
 	},
 	drawPoint: function(position){	
 		var x1 = position.x - (Math.ceil(this.options.brushWidth / 2));
@@ -134,7 +231,11 @@ window.addEvent('domready',function(){
 	//We only add the mousedown event to start draeing, the class will add the neccacary events to stop drawing
 	$('canvas-container').addEvent('mousedown',function(e){
 		var position = canvas.getPosition(e);
-		canvas.drawStart(position);
+		if(canvas.tool == 'fill'){
+			canvas.fillCanvas(position);
+		}else{
+			canvas.drawStart(position);
+		}
 	});
 	
 	$('canvas-container').addEventListener('touchstart',function(e){
@@ -157,6 +258,10 @@ window.addEvent('domready',function(){
 	
 	$('clearCanvas').addEvent('click',function(){
 		canvas.clear();	
+	});
+	
+	$$('.canvasTool').addEvent('click',function(){
+		canvas.tool = this.getAttribute('tool');
 	});
 	
 	//Much like the pulral of luxus is lexi I have decided the plural on canvas is canvi. 
