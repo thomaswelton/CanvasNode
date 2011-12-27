@@ -60,18 +60,22 @@ var Canvas = new Class({
 		}
 	},
 	fillCanvas: function(start){
-		
+		//Any pixels that need investigation should be put into this array
 		var pixelStack = [[start.x, start.y]];
 		var canvasWidth = this.ctx.canvas.width; 
 		var canvasHeight = this.ctx.canvas.height;
+		
+		//Get the image data for the whole canvas and saveit here, this prvents repeated lookups to check colours.
 		var colorLayer = this.ctx.getImageData(0, 0, canvasWidth, canvasHeight);
 		
 		startPos = (start.y*canvasWidth + start.x) * 4;
-		console.log(startPos);
-		console.log(colorLayer.data[startPos]);
 		
 		var matchColor = [colorLayer.data[startPos],colorLayer.data[startPos+1],colorLayer.data[startPos+2]];
-		console.log(matchColor);
+		
+		//this is the pixel colour that was first clicked on.
+		
+		//console.log(matchColor);
+		//console.log('We clicked on pixel '+startPos);
 		
 		var matchStartColor = function(pixelPos){
 		  var r = colorLayer.data[pixelPos];	
@@ -82,9 +86,9 @@ var Canvas = new Class({
 		};
 		
 		var colorPixel = function(pixelPos){
-		  colorLayer.data[pixelPos] = 127;
-		  colorLayer.data[pixelPos+1] = 127;
-		  colorLayer.data[pixelPos+2] = 127;
+		  colorLayer.data[pixelPos] = 100;
+		  colorLayer.data[pixelPos+1] = 100;
+		  colorLayer.data[pixelPos+2] = 100;
 		  colorLayer.data[pixelPos+3] = 255;
 		};
 		
@@ -96,47 +100,46 @@ var Canvas = new Class({
 		  y = newPos[1];
 		  
 		  pixelPos = (y*canvasWidth + x) * 4;
-		  while(y-- >= 0 && matchStartColor(pixelPos))
-		  {
+		  while(y-- >= 0 && matchStartColor(pixelPos)){
+			//while moving up check the current pixel position has the same color as the starting pixel.
 			pixelPos -= canvasWidth * 4;
 		  }
 		  pixelPos += canvasWidth * 4;
-		  ++y;
-		  reachLeft = false;
-		  reachRight = false;
-		  while(y++ < canvasHeight-1 && matchStartColor(pixelPos))
-		  {
+		  
+		 // console.log('we are at y '+y+' x '+x);
+		 // console.log('pixel pos '+pixelPos);
+		  
+		  reachLeft = true;
+		  reachRight = true;
+		  while(y++ < canvasHeight-1 && matchStartColor(pixelPos)){
+		  	//while moving down the canvas
+			//color the pixel
 			colorPixel(pixelPos);
-		
-			if(x > 0)
-			{
-			  if(matchStartColor(pixelPos - 4))
-			  {
-				if(!reachLeft){
-				  pixelStack.push([x - 1, y]);
-				  reachLeft = true;
-				}
-			  }
-			  else if(reachLeft)
-			  {
-				reachLeft = false;
-			  }
+			
+			if(x > 0){
+				//if in bounds of width 
+			  	if(reachLeft && matchStartColor(pixelPos - 4)){
+					//if we are supposed to check left and the color matches add it to the pixel stack
+					pixelStack.push([x - 1, y]);
+				  	reachLeft = false;
+			  	}
+			  	else if(!reachLeft && !matchStartColor(pixelPos - 4)){
+					//If we don't need to check left, but the pixel is of a different color, then mark reachLeft true
+					reachLeft = true;
+			  	}
 			}
 			
-			if(x < canvasWidth-1)
-			{
-			  if(matchStartColor(pixelPos + 4))
-			  {
-				if(!reachRight)
-				{
-				  pixelStack.push([x + 1, y]);
-				  reachRight = true;
-				}
-			  }
-			  else if(reachRight)
-			  {
-				reachRight = false;
-			  }
+			if(x < canvasWidth-1){
+				//if in bounds of width 
+			  	if(reachRight && matchStartColor(pixelPos + 4)){
+					//if we are supposed to check left and the color matches add it to the pixel stack
+					pixelStack.push([x + 1, y]);
+				  	reachRight = false;
+			  	}
+			  	else if(!reachRight && !matchStartColor(pixelPos + 4)){
+					//If we don't need to check left, but the pixel is of a different color, then mark reachLeft true
+					reachRight = true;
+			  	}
 			}
 					
 			pixelPos += canvasWidth * 4;
